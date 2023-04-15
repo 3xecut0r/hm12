@@ -1,8 +1,9 @@
 from collections import UserDict
 import datetime
-import json
+import pickle
+import re
 
-file_name = "contacts.json"
+file_name = 'data.bin'
 
 class Field:
     def __init__(self, value):
@@ -93,7 +94,6 @@ class Record:
     
     
 class AddressBook(UserDict):
-    
     def iterator(self, n):
         start = 0
         end = n
@@ -110,31 +110,25 @@ class AddressBook(UserDict):
             counter -= n
             
     def add_record(self, record):
+        if self.get(record.name.value):
+            return f'{record.name.value} is already in contacts'
         self.data[record.name.value] = record
         self.dump_file()
-    
+        
     def dump_file(self):
-        contact = {}
-        with open(file_name, 'w') as file:
-            for name, record in self.data.items():
-                phone = [str(phone) for phone in record.phones]
-                bd = record.birthday.value if record.birthday else 'not indicated'
-                contact.update({'contacts':{
-                    name:{
-                    'phones':phone,
-                    'birthday':bd,
-                }}})
-                json.dump(contact, file, indent=4)
-                contact = {}
-        
+        with open(file_name, 'wb') as file:
+            pickle.dump(self.data, file)
+            
     def load_file(self):
-        try:
-            with open(file_name, 'r') as file:
-                data = json.load(file)
-                return data['contacts']
-        except FileNotFoundError:
-            pass
-        
+        with open(file_name, 'rb') as file:
+            unpacked = pickle.load(file)
+            string = ''
+            for name, recs in unpacked.items():
+                phones = [str(p) for p in recs.phones]
+                bd = recs.birthday if recs.birthday else None
+                string += f'{name} : {phones} : {bd} \n'
+            return string
+
 contacts = AddressBook()
 
 def input_error(func):
@@ -213,9 +207,8 @@ def show_all(*args):
             list.append(f"[{i}]")
         return f"{' '.join(list)}"
     else:
-        s = contacts.load_file()
-        for name, recs in s.items():
-            phones = []
+        load = contacts.load_file()
+        return load
         # for k, v in contacts.data.items():
         #     record = contacts.data[k]
         #     bd = record.birthday
@@ -239,6 +232,22 @@ def birthday(*args):
     bd = record.birthday
     if record:
         return f"Birthday: {bd}"
+    
+def find(*args):
+    if len(args) != 1:
+        return "Enter one parameter"
+    pattern = args[0].lower()
+    result = []
+    for name, recs in contacts.data.items():
+        match_name = re.findall(pattern, name.lower())
+        match_phones = [re.findall(pattern, str(phone)) for phone in recs.phones]
+        match_birthday = re.findall(pattern, str(recs.birthday.value))
+        if match_name or any(match_phones) or match_birthday:
+            phones = [str(p) for p in recs.phones]
+            result.append(f"{name} : {phones} : {recs.birthday}")
+    if result:
+        return "\n".join(result)
+    return "No matches found"
 
 COMMANDS = {
     help:"help",
@@ -248,7 +257,8 @@ COMMANDS = {
     change:"change",
     show_all:"show all",
     exit:"exit",
-    birthday:"birthday"
+    birthday:"birthday",
+    find:"find",
 }
 
 def handler(string):
