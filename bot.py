@@ -3,7 +3,9 @@ import datetime
 import pickle
 import re
 
+
 file_name = 'data.bin'
+
 
 class Field:
     def __init__(self, value):
@@ -15,29 +17,31 @@ class Field:
     def __repr__(self):
         return str(self.value)
 
+
 class Name(Field):
     pass
-        
+
+
 class Phone(Field):
     def __init__(self, value):
+        super().__init__(value)
         self.__value = None
         self.value = value
-        
+
     @property
     def value(self):
         return self.__value
-    
+
     @value.setter
     def value(self, value):
-        if value is None:
-            return value
-    
         if not value.startswith('+') or len(value) < 11:
             raise ValueError
         self.__value = value
 
+
 class Birthday(Field):
     def __init__(self, value):
+        super().__init__(value)
         self.__value = None
         self.value = value
     
@@ -51,7 +55,7 @@ class Birthday(Field):
     def value(self, value):
         try:
             self.__value = datetime.datetime.strptime(value, '%d.%m.%Y')
-        except:
+        except ValueError:
             raise ValueError("Wrong format")
         
 
@@ -63,26 +67,7 @@ class Record:
 
     def add_birthday(self, birthday):
         self.birthday = birthday
-    
-    def days_to_birthday(self):
-        if not self.birthday:
-            return None
-        bd = datetime.datetime.date(self.birthday)
-        now = datetime.datetime.now()
-        if bd.month >= now.month:
-            if bd.day >= now.day:
-                if bd.day == 0:
-                    return "Happy birthday today"
-                else:
-                    return f"Days left: {bd.day}"
-            else:
-                difference = (now - bd).days
-                return f"Days left {difference}"
-        else:
-            difference = (now - bd).days
-            return f"Days left {difference}"
 
-        
     def add_phone(self, phone):
         self.phones.append(phone)
         
@@ -118,8 +103,9 @@ class AddressBook(UserDict):
     def dump_file(self):
         with open(file_name, 'wb') as file:
             pickle.dump(self.data, file)
-            
-    def load_file(self):
+
+    @staticmethod
+    def load_file():
         with open(file_name, 'rb') as file:
             unpacked = pickle.load(file)
             string = ''
@@ -129,7 +115,9 @@ class AddressBook(UserDict):
                 string += f'{name} : {phones} : {bd} \n'
             return string
 
+
 contacts = AddressBook()
+
 
 def input_error(func):
     def wrapper(*args):
@@ -143,6 +131,7 @@ def input_error(func):
             return "Give me a name and phone please"
     return wrapper
 
+
 def help(*args):
     return """
 help: To see this message
@@ -155,57 +144,62 @@ exit: If you want to exit
 birthday <name>: To see when birthday
 """
 
+
 def hello(*args):
     return "How can I help you?"
+
 
 @input_error
 def add(*args):
     obj = args[0].split()
     name = Name(obj[0])
-    phone = Phone(obj[1])
+    p = Phone(obj[1])
     try:
         bd = Birthday(obj[2])
-        record = Record(name, phone, bd)
+        record = Record(name, p, bd)
         contacts.add_record(record)
-        return f"Added <{name.value}> with phone <{phone.value}>. Birthday: {bd.value}"
-    except:
-        record = Record(name, phone)
+        return f"Added <{name.value}> with phone <{p.value}>. Birthday: {bd.value}"
+    except ValueError:
+        record = Record(name, p)
         contacts.add_record(record)
-        return f"Added <{name.value}> with phone <{phone.value}>"
+        return f"Added <{name.value}> with phone <{p.value}>"
+
 
 @input_error
 def phone(*args):
     name = args[0]
     record = contacts.get(name)
     bd = record.birthday
-    if bd == None:
+    if bd is None:
         bd = "not indicated"
     if record:
-        return f"{name} : {', '.join(str(phone) for phone in record.phones)} : {bd}"
+        return f"{name} : {', '.join(str(p) for p in record.phones)} : {bd}"
     raise KeyError         
+
 
 @input_error
 def change(*args):
     obj = args[0].split()
     name = Name(obj[0])
-    phone = Phone(obj[1])
+    p = Phone(obj[1])
     record = contacts[name.value]
-    record.change_phone(0, phone)
-    return f"Changed phone <{phone}>, with name <{name}>"
+    record.change_phone(0, p)
+    return f"Changed phone <{p}>, with name <{name}>"
+
 
 @input_error
 def show_all(*args):
     obj = args[0].split()
-    list = []
+    lst = []
     if len(contacts.data) == 0:
         return "list of contacts is empty..."
-    if len(obj)>0:
+    if len(obj) > 0:
         n = obj[0]
         n = int(n)
         res = contacts.iterator(n)
         for i in res:
-            list.append(f"[{i}]")
-        return f"{' '.join(list)}"
+            lst.append(f"[{i}]")
+        return f"{' '.join(lst)}"
     else:
         load = contacts.load_file()
         return load
@@ -216,14 +210,17 @@ def show_all(*args):
         #         bd = "not indicated"
         #     list.append(f"{k}: {', '.join(str(phone) for phone in record.phones)} : {bd}")
         # return "\n".join([f"{item}"for item in list])
-    
+
+
 @input_error
 def exit(*args):
     return "Good bye"
 
+
 @input_error
 def unknown_command(*args):
     return "Invalid command"
+
 
 @input_error    
 def birthday(*args):
@@ -232,7 +229,8 @@ def birthday(*args):
     bd = record.birthday
     if record:
         return f"Birthday: {bd}"
-    
+
+
 def find(*args):
     if len(args) != 1:
         return "Enter one parameter"
@@ -249,23 +247,47 @@ def find(*args):
         return "\n".join(result)
     return "No matches found"
 
+
+def days_to_birthday(*args):
+    birthday = args[0]
+    if not birthday:
+        return f"Not indicated"
+    bd = datetime.datetime.date(birthday)
+    now = datetime.datetime.now()
+    if bd.month >= now.month:
+        if bd.day >= now.day:
+            if bd.day == 0:
+                return "Happy birthday today"
+            else:
+                return f"Days left: {bd.day}"
+        else:
+            difference = (now - bd).days
+            return f"Days left {difference}"
+    else:
+        difference = (now - bd).days
+        return f"Days left {difference}"
+
+
 COMMANDS = {
-    help:"help",
-    hello:"hello",
-    add:"add",
-    phone:"phone",
-    change:"change",
-    show_all:"show all",
-    exit:"exit",
-    birthday:"birthday",
-    find:"find",
+    help: "help",
+    hello: "hello",
+    add: "add",
+    phone: "phone",
+    change: "change",
+    show_all: "show all",
+    exit: "exit",
+    birthday: "birthday",
+    find: "find",
+    days_to_birthday: "days left",
 }
+
 
 def handler(string):
     for key, value in COMMANDS.items():
         if string.startswith(value):
             return key, string.replace(value, "").strip()
     return unknown_command, contacts
+
 
 def main():
     while True:
@@ -274,7 +296,9 @@ def main():
         print(command(data))
         if command == exit:
             break
-        
+
+
 if __name__ == "__main__":
     print(hello() + " Type <help> if you need help.")
     main()
+    
