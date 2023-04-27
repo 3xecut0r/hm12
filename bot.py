@@ -298,7 +298,3 @@ def main():
             break
 
 
-if __name__ == "__main__":
-    print(hello() + " Type <help> if you need help.")
-    main()
-    
