@@ -1,5 +1,5 @@
 from collections import UserDict
-import datetime
+from datetime import datetime
 import pickle
 import re
 
@@ -49,12 +49,12 @@ class Birthday(Field):
     def value(self):
         if self.__value is None:
             return None
-        return self.__value.strftime('%d.%m.%Y')
+        return self.__value.strftime('%d/%m/%Y')
     
     @value.setter
     def value(self, value):
         try:
-            self.__value = datetime.datetime.strptime(value, '%d.%m.%Y')
+            self.__value = datetime.strptime(value, '%d/%m/%Y')
         except ValueError:
             raise ValueError("Wrong format")
         
@@ -79,6 +79,18 @@ class Record:
     
     
 class AddressBook(UserDict):
+    def days_to_birthday(self, days):
+        today = datetime.today().date()
+        res = []
+        for recs in self.data.values():
+            today = datetime.today().date()
+            birthday = datetime.strptime(recs.birthday.value, "%d/%m/%Y").replace(year=today.year).date()
+            difference = (birthday - today).days
+            if 0 <= difference <= days:
+                contact = f"{recs.name.value} : {recs.birthday.value} -> {difference} days left"
+                res.append(contact)
+        return res
+
     def iterator(self, n):
         start = 0
         end = n
@@ -248,24 +260,15 @@ def find(*args):
     return "No matches found"
 
 
+@input_error
 def days_to_birthday(*args):
-    birthday = args[0]
-    if not birthday:
-        return f"Not indicated"
-    bd = datetime.datetime.date(birthday)
-    now = datetime.datetime.now()
-    if bd.month >= now.month:
-        if bd.day >= now.day:
-            if bd.day == 0:
-                return "Happy birthday today"
-            else:
-                return f"Days left: {bd.day}"
-        else:
-            difference = (now - bd).days
-            return f"Days left {difference}"
-    else:
-        difference = (now - bd).days
-        return f"Days left {difference}"
+    if not args:
+        raise TypeError("Select period in days")
+    days = int(args[0])
+    upcoming = contacts.days_to_birthday(days)
+    if len(upcoming) == 0:
+        return "There will be no birthdays in the period you chose"
+    return upcoming
 
 
 COMMANDS = {
@@ -296,5 +299,3 @@ def main():
         print(command(data))
         if command == exit:
             break
-
-
